@@ -1,0 +1,1334 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>FF Tournament Hub</title>
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-storage-compat.js"></script>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Rajdhani:wght@500;600;700&family=Exo+2:wght@300;400;600;700;900&display=swap');
+:root{
+  --or:#FF6B00;--re:#E8001C;--go:#FFD700;
+  --dk:#08080E;--pn:#0F0F1A;--cd:#141425;
+  --br:rgba(255,107,0,0.22);--tx:#E8E8F0;--mt:#7777AA;
+  --gn:#00E676;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'Exo 2',sans-serif;background:var(--dk);color:var(--tx);min-height:100vh;overflow-x:hidden}
+body::before{content:'';position:fixed;inset:0;
+  background-image:linear-gradient(rgba(255,107,0,.03) 1px,transparent 1px),
+  linear-gradient(90deg,rgba(255,107,0,.03) 1px,transparent 1px);
+  background-size:44px 44px;pointer-events:none;z-index:0}
+#app{position:relative;z-index:1}
+
+/* NAV */
+.nav{background:rgba(8,8,14,.95);border-bottom:1px solid var(--br);
+  padding:0 16px;height:54px;display:flex;align-items:center;
+  justify-content:space-between;position:sticky;top:0;z-index:200;backdrop-filter:blur(12px)}
+.nav-logo{font-family:'Rajdhani',sans-serif;font-weight:700;font-size:20px;letter-spacing:2px}
+.nav-logo span{color:var(--or)}
+
+/* BUTTONS */
+.btn{padding:9px 18px;border:none;border-radius:5px;font-family:'Rajdhani',sans-serif;
+  font-weight:700;font-size:13px;letter-spacing:1px;text-transform:uppercase;cursor:pointer;transition:.2s}
+.btn-primary{background:linear-gradient(135deg,var(--or),var(--re));color:#fff;box-shadow:0 4px 14px rgba(255,107,0,.35)}
+.btn-primary:hover{transform:translateY(-1px);box-shadow:0 6px 20px rgba(255,107,0,.5)}
+.btn-primary:disabled{opacity:.45;cursor:not-allowed;transform:none}
+.btn-secondary{background:transparent;color:var(--or);border:1px solid var(--or)}
+.btn-secondary:hover{background:rgba(255,107,0,.1)}
+.btn-ghost{background:rgba(255,255,255,.06);color:var(--tx)}
+.btn-ghost:hover{background:rgba(255,255,255,.12)}
+.btn-danger{background:var(--re);color:#fff}
+.btn-danger:hover{opacity:.85}
+.btn-success{background:var(--gn);color:#000;font-weight:700}
+.btn-success:hover{background:#00c060}
+.btn-sm{padding:5px 11px;font-size:11px}
+.btn-full{width:100%;margin-top:6px}
+
+/* INPUTS */
+.inp{width:100%;padding:10px 13px;background:rgba(255,255,255,.05);
+  border:1px solid var(--br);border-radius:5px;color:var(--tx);
+  font-family:'Exo 2',sans-serif;font-size:14px;outline:none;transition:.2s}
+.inp:focus{border-color:var(--or);background:rgba(255,107,0,.04)}
+.inp::placeholder{color:var(--mt)}
+textarea.inp{resize:vertical;min-height:70px}
+select.inp{cursor:pointer}
+.lbl{display:block;font-family:'Rajdhani',sans-serif;font-size:11px;font-weight:600;
+  letter-spacing:.8px;color:var(--mt);margin-bottom:5px;text-transform:uppercase}
+.field{margin-bottom:13px}
+.req{color:var(--re)}
+
+/* CARD */
+.card{background:var(--cd);border:1px solid var(--br);border-radius:8px;padding:16px}
+
+/* TAGS */
+.tag{display:inline-block;padding:2px 10px;border-radius:20px;
+  font-size:11px;font-weight:700;letter-spacing:1px;text-transform:uppercase}
+.tag-on{background:rgba(0,230,118,.12);color:var(--gn);border:1px solid rgba(0,230,118,.3)}
+.tag-off{background:rgba(232,0,28,.12);color:var(--re);border:1px solid rgba(232,0,28,.3)}
+
+/* TOAST */
+#toast-wrap{position:fixed;top:14px;right:14px;z-index:9999;display:flex;flex-direction:column;gap:7px}
+.toast{padding:10px 15px;border-radius:6px;font-size:13px;font-weight:600;
+  animation:tslide .3s ease;display:flex;align-items:center;gap:7px;max-width:290px;box-shadow:0 4px 20px rgba(0,0,0,.5)}
+.toast-ok{background:var(--gn);color:#000}
+.toast-er{background:var(--re);color:#fff}
+.toast-if{background:var(--or);color:#fff}
+@keyframes tslide{from{transform:translateX(110%);opacity:0}to{transform:none;opacity:1}}
+
+/* MODAL */
+.modal-bg{position:fixed;inset:0;background:rgba(0,0,0,.78);
+  display:flex;align-items:center;justify-content:center;z-index:500;padding:14px;overflow-y:auto}
+.modal{background:var(--pn);border:1px solid var(--br);border-radius:12px;
+  padding:22px;width:100%;max-width:560px;max-height:92vh;overflow-y:auto}
+.modal h3{font-family:'Rajdhani',sans-serif;font-size:20px;font-weight:700;margin-bottom:16px}
+.hidden{display:none!important}
+
+/* ADMIN LAYOUT */
+.admin-wrap{display:flex;min-height:calc(100vh - 54px)}
+.sidebar{width:200px;background:var(--pn);border-right:1px solid var(--br);padding:14px 0;flex-shrink:0}
+.sb-item{display:flex;align-items:center;gap:9px;padding:11px 16px;cursor:pointer;
+  font-size:13px;font-weight:600;color:var(--mt);border-left:3px solid transparent;transition:.15s;text-decoration:none}
+.sb-item:hover{background:rgba(255,107,0,.07);color:var(--tx)}
+.sb-item.active{background:rgba(255,107,0,.13);color:var(--or);border-left-color:var(--or)}
+.content{flex:1;padding:22px;overflow-y:auto;min-width:0}
+.page-title{font-family:'Rajdhani',sans-serif;font-size:25px;font-weight:800;
+  letter-spacing:1.5px;text-transform:uppercase;margin-bottom:16px}
+.page-title span{color:var(--or)}
+
+/* STATS */
+.stats{display:flex;gap:12px;margin-bottom:20px;flex-wrap:wrap}
+.stat{background:var(--cd);border:1px solid var(--br);border-radius:8px;padding:13px 20px;flex:1;min-width:100px}
+.stat .num{font-family:'Rajdhani',sans-serif;font-size:28px;font-weight:700;color:var(--or)}
+.stat .lbl{font-size:11px;color:var(--mt);margin-top:1px}
+
+/* MATCH CARDS */
+.m-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(270px,1fr));gap:12px;margin-top:14px}
+.m-card{background:var(--cd);border:1px solid var(--br);border-radius:8px;padding:15px;transition:.2s}
+.m-card:hover{border-color:rgba(255,107,0,.45)}
+.m-top{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:9px}
+.m-name{font-family:'Rajdhani',sans-serif;font-size:16px;font-weight:700}
+.m-meta{font-size:11px;color:var(--mt);margin-top:3px;line-height:1.6}
+.m-actions{display:flex;gap:6px;flex-wrap:wrap;margin-top:11px}
+
+/* TABLE */
+.tbl-wrap{overflow-x:auto;-webkit-overflow-scrolling:touch}
+.tbl{width:100%;border-collapse:collapse;font-size:13px;margin-top:12px;min-width:600px}
+.tbl th{background:rgba(255,107,0,.1);padding:9px 12px;text-align:left;
+  font-family:'Rajdhani',sans-serif;font-size:11px;letter-spacing:1px;
+  color:var(--or);border-bottom:1px solid var(--br)}
+.tbl td{padding:9px 12px;border-bottom:1px solid rgba(255,255,255,.04);vertical-align:middle}
+.tbl tr:hover td{background:rgba(255,255,255,.02)}
+
+/* FIELD BUILDER */
+.field-row{background:rgba(255,255,255,.03);border:1px solid var(--br);
+  border-radius:6px;padding:11px;display:flex;align-items:center;gap:9px;margin-bottom:7px}
+.field-row-info{flex:1;min-width:0}
+.field-row-name{font-weight:600;font-size:13px}
+.field-row-type{font-size:11px;color:var(--mt);margin-top:2px}
+
+/* DIVIDER */
+hr.div{border:none;border-top:1px solid var(--br);margin:16px 0}
+
+/* LOGIN */
+.login-wrap{min-height:100vh;display:flex;align-items:center;justify-content:center;padding:16px}
+.login-box{background:var(--pn);border:1px solid var(--br);border-radius:12px;
+  padding:34px 28px;width:100%;max-width:340px;box-shadow:0 20px 60px rgba(0,0,0,.6)}
+
+/* PLAYER FORM */
+.player-outer{padding:14px;padding-bottom:40px}
+.p-header{text-align:center;padding:28px 0 20px}
+.p-header h1{font-family:'Rajdhani',sans-serif;font-size:36px;font-weight:900;letter-spacing:3px;text-transform:uppercase}
+.glow{background:linear-gradient(135deg,var(--or),var(--go));-webkit-background-clip:text;
+  -webkit-text-fill-color:transparent;background-clip:text}
+.p-form{max-width:520px;margin:0 auto}
+
+/* STEPS */
+.steps{display:flex;align-items:center;justify-content:center;margin-bottom:22px;flex-wrap:wrap;gap:4px}
+.step{display:flex;align-items:center;gap:6px}
+.step-n{width:26px;height:26px;border-radius:50%;display:flex;align-items:center;
+  justify-content:center;font-size:11px;font-weight:700;
+  background:rgba(255,255,255,.08);color:var(--mt);transition:.3s;flex-shrink:0}
+.step.done .step-n{background:var(--gn);color:#000}
+.step.cur .step-n{background:var(--or);color:#fff}
+.step-l{font-size:11px;font-weight:600;color:var(--mt)}
+.step.cur .step-l{color:var(--tx)}
+.step-line{width:28px;height:1px;background:var(--br)}
+
+/* MATCH SELECT */
+.match-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:9px;margin:12px 0}
+.match-opt{background:var(--cd);border:2px solid var(--br);border-radius:8px;
+  padding:13px;cursor:pointer;transition:.2s}
+.match-opt:hover{border-color:rgba(255,107,0,.5)}
+.match-opt.sel{border-color:var(--or);background:rgba(255,107,0,.08)}
+.match-opt-name{font-family:'Rajdhani',sans-serif;font-size:15px;font-weight:700}
+.match-opt-sub{font-size:11px;color:var(--mt);margin-top:2px;line-height:1.5}
+.match-opt-fee{font-size:13px;color:var(--or);margin-top:5px;font-weight:700}
+
+/* MATCH INFO BANNER */
+.match-banner{background:var(--cd);border:1px solid var(--br);border-radius:8px;padding:14px;margin-bottom:14px}
+.match-banner-name{font-family:'Rajdhani',sans-serif;font-size:18px;font-weight:700}
+.match-info-grid{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-top:10px}
+.match-info-item{font-size:12px}
+.match-info-label{color:var(--mt);font-size:10px;font-family:'Rajdhani',sans-serif;letter-spacing:.5px;text-transform:uppercase}
+.match-info-val{font-weight:600;margin-top:1px}
+
+/* QR */
+.qr-box{text-align:center;background:var(--cd);border:1px solid var(--br);border-radius:8px;padding:20px;margin:14px 0}
+.qr-box h3{font-family:'Rajdhani',sans-serif;font-size:16px;font-weight:700;margin-bottom:4px}
+.qr-img-wrap{width:160px;height:160px;background:#fff;margin:12px auto;
+  border-radius:8px;overflow:hidden;display:flex;align-items:center;justify-content:center;font-size:11px;color:#999}
+.qr-img-wrap img{width:100%;height:100%;object-fit:contain}
+
+/* UPLOAD */
+.upload-area{border:2px dashed var(--br);border-radius:8px;padding:22px;
+  text-align:center;cursor:pointer;transition:.2s;position:relative;margin-bottom:13px}
+.upload-area:hover,.upload-area:active{border-color:var(--or);background:rgba(255,107,0,.05)}
+.upload-area input[type=file]{position:absolute;inset:0;opacity:0;cursor:pointer;width:100%;height:100%}
+.upload-ico{font-size:32px;display:block;margin-bottom:6px}
+.upload-lbl{font-weight:600;font-size:14px}
+.upload-sub{font-size:11px;color:var(--mt);margin-top:2px}
+.upload-preview{max-width:100%;max-height:160px;border-radius:6px;margin-bottom:7px}
+
+/* SUCCESS */
+.success-box{text-align:center;padding:32px 16px}
+.success-ico{font-size:60px;margin-bottom:12px}
+.success-title{font-family:'Rajdhani',sans-serif;font-size:26px;font-weight:900;letter-spacing:2px;margin-bottom:7px}
+
+/* SETTINGS */
+.settings-wrap{max-width:560px}
+.settings-wrap h3{font-family:'Rajdhani',sans-serif;font-size:13px;font-weight:700;
+  color:var(--or);letter-spacing:1px;text-transform:uppercase;
+  margin-bottom:12px;padding-bottom:7px;border-bottom:1px solid var(--br)}
+.copy-box{display:flex;gap:8px;align-items:center;background:rgba(255,255,255,.03);
+  border:1px solid var(--br);border-radius:5px;padding:8px 12px;
+  font-size:11px;font-family:monospace;color:var(--mt);word-break:break-all}
+.copy-box span{flex:1}
+
+/* SUB DETAIL */
+.sub-row{display:flex;gap:10px;padding:6px 0;border-bottom:1px solid rgba(255,255,255,.04)}
+.sub-key{color:var(--mt);width:130px;flex-shrink:0;font-weight:600;font-size:12px}
+.sub-val{font-size:13px}
+
+/* HELPERS */
+.g2{display:grid;grid-template-columns:1fr 1fr;gap:11px}
+.g3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:11px}
+.flex{display:flex}.gap8{gap:8px}.gap10{gap:10px}
+.sb{justify-content:space-between}.ac{align-items:center}
+.mt8{margin-top:8px}.mt12{margin-top:12px}.mt16{margin-top:16px}.mt20{margin-top:20px}
+
+/* MOBILE */
+@media(max-width:600px){
+  .admin-wrap{flex-direction:column}
+  .sidebar{width:100%;border-right:none;border-bottom:1px solid var(--br);
+    display:flex;flex-wrap:wrap;padding:6px 4px;gap:2px}
+  .sb-item{border-left:none;border-bottom:2px solid transparent;padding:8px 10px;font-size:11px;border-radius:4px}
+  .sb-item.active{border-bottom-color:var(--or);border-left:none}
+  .content{padding:14px}
+  .g2,.g3{grid-template-columns:1fr}
+  .m-grid{grid-template-columns:1fr}
+  .match-grid{grid-template-columns:1fr}
+  .stats{gap:8px}
+  .stat{min-width:80px;padding:10px 14px}
+  .page-title{font-size:20px}
+  .p-header h1{font-size:28px}
+  .match-info-grid{grid-template-columns:1fr 1fr}
+}
+</style>
+</head>
+<body>
+<div id="toast-wrap"></div>
+<div id="app"></div>
+<script>
+// ============================================================
+// CONFIG — Paste your Firebase config here
+// ============================================================
+const FIREBASE_CONFIG = {
+  apiKey: "AIzaSyArQ_8sC3AyrYeJD4blROQmuAlhPNqLMnk",
+  authDomain: "match-registretion.firebaseapp.com",
+  projectId: "match-registretion",
+  storageBucket: "match-registretion.firebasestorage.app",
+  messagingSenderId: "512436228749",
+  appId: "1:512436228749:web:497652b813e21a8e4e08c4"
+};
+const DEFAULT_PASS = "admin123";
+const IMGBB_API_KEY = "5d8c96c7f091df0e5fe41e205bf9d878";
+
+// ============================================================
+// FIREBASE INIT
+// ============================================================
+let db = null, fbStorage = null, firebaseOK = false;
+try {
+  if (!firebase.apps.length) firebase.initializeApp(FIREBASE_CONFIG);
+  if (!FIREBASE_CONFIG.apiKey.includes("YOUR")) {
+    db = firebase.firestore();
+    fbStorage = firebase.storage();
+    firebaseOK = true;
+  }
+} catch(e) { console.warn("Firebase not ready:", e); }
+
+// ============================================================
+// LOCAL STORAGE
+// ============================================================
+const LS = {
+  get: (k,d) => { try { const v = localStorage.getItem(k); return v != null ? JSON.parse(v) : d; } catch { return d; } },
+  set: (k,v) => localStorage.setItem(k, JSON.stringify(v))
+};
+const lsMatches  = () => LS.get('ff_matches', []);
+const lsSubs     = () => LS.get('ff_subs', []);
+const lsSettings = () => LS.get('ff_settings', { whatsapp:'', password: DEFAULT_PASS });
+const saveSettings = s => LS.set('ff_settings', s);
+
+// ============================================================
+// DATA LAYER
+// ============================================================
+async function getMatches() {
+  if (!firebaseOK) return lsMatches();
+  const snap = await db.collection('matches').orderBy('createdAt','desc').get();
+  return snap.docs.map(d => ({ id: d.id, ...d.data() }));
+}
+async function upsertMatch(m) {
+  if (!m.id) m.id = Date.now().toString();
+  if (!firebaseOK) {
+    const all = lsMatches();
+    if (m.isDefault) all.forEach(x=>{ if(x.id!==m.id) x.isDefault=false; });
+    const i = all.findIndex(x=>x.id===m.id);
+    i>=0 ? all[i]=m : all.unshift(m); LS.set('ff_matches',all); return m;
+  }
+  if (m.isDefault) {
+    const prevDefaults = await db.collection('matches').where('isDefault','==',true).get();
+    const batch = db.batch();
+    prevDefaults.docs.forEach(d=>{ if(d.id!==m.id) batch.update(d.ref,{isDefault:false}); });
+    await batch.commit();
+  }
+  await db.collection('matches').doc(m.id).set(m); return m;
+}
+async function delSubsByMatch(matchId) {
+  const subs = await getSubs(matchId);
+  if (!firebaseOK) {
+    LS.set('ff_subs', lsSubs().filter(s=>s.matchId!==matchId));
+    return;
+  }
+  // Note: screenshots are hosted on ImgBB (external), not Firebase Storage — nothing to clean up there.
+  // Batch-delete submission docs (max 500 per batch)
+  const chunks = [];
+  for (let i=0;i<subs.length;i+=450) chunks.push(subs.slice(i,i+450));
+  for (const chunk of chunks) {
+    const batch = db.batch();
+    chunk.forEach(s=>batch.delete(db.collection('subs').doc(s.id)));
+    await batch.commit();
+  }
+}
+async function delMatch(id) {
+  await delSubsByMatch(id);
+  if (!firebaseOK) { LS.set('ff_matches',lsMatches().filter(m=>m.id!==id)); return; }
+  await db.collection('matches').doc(id).delete();
+}
+async function getSubs(matchId) {
+  if (!firebaseOK) { const a=lsSubs(); return matchId?a.filter(s=>s.matchId===matchId):a; }
+  let q = db.collection('subs').orderBy('createdAt','desc');
+  if (matchId) q = q.where('matchId','==',matchId);
+  return (await q.get()).docs.map(d=>({id:d.id,...d.data()}));
+}
+async function addSub(sub) {
+  sub.id = Date.now().toString();
+  if (!firebaseOK) { const a=lsSubs(); a.unshift(sub); LS.set('ff_subs',a); return sub; }
+  await db.collection('subs').doc(sub.id).set(sub); return sub;
+}
+async function updateSub(id, data) {
+  if (!firebaseOK) {
+    const a=lsSubs(); const i=a.findIndex(s=>s.id===id);
+    if(i>=0) Object.assign(a[i],data); LS.set('ff_subs',a); return;
+  }
+  await db.collection('subs').doc(id).update(data);
+}
+async function uploadScreenshot(file, name) {
+  try {
+    const fd = new FormData();
+    fd.append('image', file);
+    fd.append('name', `${Date.now()}_${name.replace(/\s+/g,'_')}`);
+    const res = await fetch(`https://api.imgbb.com/1/upload?key=${IMGBB_API_KEY}`, {
+      method: 'POST', body: fd
+    });
+    const data = await res.json();
+    if (data.success) return data.data.url;
+    console.error('ImgBB upload failed:', data);
+    return null; // falls back to base64 inline
+  } catch (e) {
+    console.error('ImgBB upload error:', e);
+    return null;
+  }
+}
+
+// ============================================================
+// TOAST
+// ============================================================
+function toast(msg, type='if') {
+  const icons={ok:'✓',er:'✕',if:'ℹ'};
+  const el=document.createElement('div');
+  el.className=`toast toast-${type}`;
+  el.innerHTML=`<span>${icons[type]||'ℹ'}</span><span>${msg}</span>`;
+  document.getElementById('toast-wrap').appendChild(el);
+  setTimeout(()=>el.remove(),3400);
+}
+
+// ============================================================
+// WHATSAPP AUTO-MESSAGE
+// ============================================================
+function sendWA(sub, match) {
+  const settings = lsSettings();
+  const wa = settings.whatsapp || '';
+
+  // Build info lines
+  const lines = [
+    `🔥 *New FF Tournament Registration*`,
+    ``,
+    `📋 *Match:* ${sub.matchName}`,
+    `⚔️ *Mode:* ${match?.mode || '-'}`,
+    ``,
+  ];
+
+  // List all player/substitute fields from formData in order, plus any other custom fields
+  if (sub.formData) {
+    const shownKeys = new Set();
+    // Player/Substitute fields first (grouped)
+    Object.entries(sub.formData).forEach(([k,v]) => {
+      if (/^(Player|Substitute) \d+ /.test(k) && v) {
+        lines.push(`• *${k}:* ${v}`);
+        shownKeys.add(k);
+      }
+    });
+    lines.push(``);
+    // Any remaining custom fields (old format or admin-added extras)
+    Object.entries(sub.formData).forEach(([k,v]) => {
+      if (!shownKeys.has(k) && v) lines.push(`• *${k}:* ${v}`);
+    });
+  }
+
+  lines.push(``);
+  lines.push(`💰 *Entry Fee:* ₹${match?.entryFee || '-'}`);
+  lines.push(`🗺 *Map:* ${match?.map || '-'}`);
+  lines.push(`🏆 *Prize:* ${match?.prize || '-'}`);
+  lines.push(``);
+  lines.push(`📅 *Submitted:* ${new Date(sub.createdAt).toLocaleString()}`);
+  lines.push(`⏳ *Payment:* Pending Verification`);
+
+  const msg = encodeURIComponent(lines.join('\n'));
+  const url = wa ? `https://wa.me/${wa}?text=${msg}` : `https://wa.me/?text=${msg}`;
+  window.open(url, '_blank');
+}
+
+// Admin -> Player: opens the PLAYER's whatsapp (not admin's)
+function sendWAToPlayer(sub) {
+  const mob = (sub.mobile || '').replace(/\D/g,'');
+  if (!mob) { toast('Player ka mobile number save nahi hai. Pehle add karo.', 'err'); return; }
+  const num = mob.length === 10 ? `91${mob}` : mob; // default India code if 10-digit
+  const lines = [
+    `Hi ${sub.playerName || sub.ign || 'Player'},`,
+    ``,
+    `Regarding your registration for *${sub.matchName || ''}*.`,
+  ];
+  const msg = encodeURIComponent(lines.join('\n'));
+  window.open(`https://wa.me/${num}?text=${msg}`, '_blank');
+}
+
+// ============================================================
+// ROUTER
+// ============================================================
+let ADMIN_AUTHED = false;
+
+function route() {
+  const app = document.getElementById('app');
+  app.innerHTML = '';
+  if (location.hash === '#admin') {
+    ADMIN_AUTHED ? renderAdmin(app) : renderLogin(app);
+  } else {
+    renderPlayer(app);
+  }
+}
+window.addEventListener('hashchange', route);
+
+// ============================================================
+// LOGIN
+// ============================================================
+function renderLogin(root) {
+  root.innerHTML = `
+  <div class="login-wrap">
+    <div class="login-box">
+      <div style="text-align:center;margin-bottom:22px">
+        <div style="font-size:46px">🔥</div>
+        <div style="font-family:Rajdhani;font-size:21px;font-weight:800;letter-spacing:3px;margin-top:4px">
+          FF <span style="color:var(--or)">TOURNAMENT</span>
+        </div>
+      </div>
+      <div style="font-family:Rajdhani;font-size:18px;font-weight:700;text-align:center;margin-bottom:5px">Admin Login</div>
+      <p style="color:var(--mt);font-size:12px;text-align:center;margin-bottom:20px">Enter password to access admin panel</p>
+      <div class="field">
+        <label class="lbl">Password</label>
+        <input class="inp" type="password" id="pass-in" placeholder="Admin password" autofocus/>
+        <div style="color:var(--re);font-size:12px;margin-top:4px;display:none" id="pass-err">Wrong password</div>
+      </div>
+      <button class="btn btn-primary btn-full" id="login-btn">LOGIN</button>
+      <div style="text-align:center;margin-top:14px">
+        <a href="#" onclick="location.hash='';return false" style="color:var(--mt);font-size:12px">← Back to Player Form</a>
+      </div>
+    </div>
+  </div>`;
+  function tryLogin() {
+    const pwd = document.getElementById('pass-in').value;
+    const stored = lsSettings().password || DEFAULT_PASS;
+    if (pwd === stored) { ADMIN_AUTHED = true; renderAdmin(root); }
+    else { document.getElementById('pass-err').style.display='block'; }
+  }
+  document.getElementById('login-btn').onclick = tryLogin;
+  document.getElementById('pass-in').onkeydown = e => { if(e.key==='Enter') tryLogin(); };
+}
+
+// ============================================================
+// ADMIN SHELL
+// ============================================================
+let adminTab = 'dashboard';
+
+function renderAdmin(root) {
+  root.innerHTML = `
+  <nav class="nav">
+    <div class="nav-logo">FF <span>ADMIN</span></div>
+    <div class="flex gap8 ac">
+      ${!firebaseOK ? '<span style="color:var(--or);font-size:10px;font-weight:700">LOCAL MODE</span>' : '<span style="color:var(--gn);font-size:10px;font-weight:700">● FIREBASE</span>'}
+      <button class="btn btn-ghost btn-sm" id="logout-btn">Logout</button>
+    </div>
+  </nav>
+  <div class="admin-wrap">
+    <div class="sidebar" id="sidebar">
+      <div class="sb-item ${adminTab==='dashboard'?'active':''}" data-tab="dashboard"><span>📊</span> Dashboard</div>
+      <div class="sb-item ${adminTab==='matches'?'active':''}" data-tab="matches"><span>🎮</span> Matches</div>
+      <div class="sb-item ${adminTab==='subs'?'active':''}" data-tab="subs"><span>📋</span> Registrations</div>
+      <div class="sb-item ${adminTab==='wa'?'active':''}" data-tab="wa"><span>📱</span> WhatsApp</div>
+      <div class="sb-item ${adminTab==='settings'?'active':''}" data-tab="settings"><span>⚙️</span> Settings</div>
+      <a href="${location.href.split('#')[0]}" target="_blank" class="sb-item"><span>🔗</span> Player Form</a>
+    </div>
+    <div class="content" id="tab-content"></div>
+  </div>`;
+  document.getElementById('logout-btn').onclick = () => { ADMIN_AUTHED=false; renderLogin(root); };
+  document.querySelectorAll('.sb-item[data-tab]').forEach(el => {
+    el.onclick = () => { adminTab=el.dataset.tab; renderAdmin(root); };
+  });
+  loadTab();
+}
+
+function loadTab() {
+  const c = document.getElementById('tab-content');
+  if (!c) return;
+  if (adminTab==='dashboard') tabDashboard(c);
+  if (adminTab==='matches')   tabMatches(c);
+  if (adminTab==='subs')      tabSubs(c);
+  if (adminTab==='wa')        tabWhatsApp(c);
+  if (adminTab==='settings')  tabSettings(c);
+}
+
+// ============================================================
+// TAB: DASHBOARD
+// ============================================================
+async function tabDashboard(c) {
+  c.innerHTML = '<div style="color:var(--mt);padding:20px">Loading…</div>';
+  const [matches, subs] = await Promise.all([getMatches(), getSubs()]);
+  c.innerHTML = `
+  <div class="page-title">DASH<span>BOARD</span></div>
+  <div class="stats">
+    <div class="stat"><div class="num">${matches.length}</div><div class="lbl">Matches</div></div>
+    <div class="stat"><div class="num">${matches.filter(m=>m.status==='active').length}</div><div class="lbl">Active</div></div>
+    <div class="stat"><div class="num">${subs.length}</div><div class="lbl">Registrations</div></div>
+    <div class="stat"><div class="num">${subs.filter(s=>s.paymentVerified).length}</div><div class="lbl">Verified</div></div>
+  </div>
+  <div style="font-family:Rajdhani;font-size:13px;font-weight:700;color:var(--or);letter-spacing:1px;margin-bottom:10px">RECENT REGISTRATIONS</div>
+  ${subs.slice(0,6).map(s=>`
+    <div class="card flex sb ac" style="margin-bottom:7px;gap:10px;flex-wrap:wrap">
+      <div>
+        <div style="font-weight:700">${esc(s.playerName)||'Player'} <span style="color:var(--mt);font-weight:400;font-size:12px">• ${esc(s.uid||'')}</span></div>
+        <div style="font-size:11px;color:var(--mt);margin-top:1px">${esc(s.matchName)} • ${new Date(s.createdAt).toLocaleString()}</div>
+      </div>
+      <span class="tag ${s.paymentVerified?'tag-on':'tag-off'}">${s.paymentVerified?'Verified':'Pending'}</span>
+    </div>`).join('')}
+  ${subs.length===0?'<div style="color:var(--mt);font-size:13px">No registrations yet.</div>':''}`;
+}
+
+// ============================================================
+// TAB: MATCHES
+// ============================================================
+async function tabMatches(c) {
+  c.innerHTML = '<div style="color:var(--mt);padding:20px">Loading…</div>';
+  const matches = await getMatches();
+  c.innerHTML = `
+  <div class="flex sb ac" style="flex-wrap:wrap;gap:10px;margin-bottom:4px">
+    <div class="page-title" style="margin-bottom:0">MATCH<span>ES</span></div>
+    <button class="btn btn-primary" id="create-btn">+ CREATE MATCH</button>
+  </div>
+  <div class="m-grid">
+    ${matches.length===0?'<div style="color:var(--mt);font-size:13px;padding-top:12px">No matches yet.</div>':''}
+    ${matches.map(m=>`
+      <div class="m-card">
+        <div class="m-top">
+          <div>
+            <div class="m-name">${esc(m.name)} ${m.isDefault?'<span style="color:var(--or);font-size:11px">⭐ DEFAULT</span>':''}</div>
+            <div class="m-meta">
+              ⚔️ ${esc(m.mode||'-')} &nbsp;|&nbsp; 🗺 ${esc(m.map||'-')}<br/>
+              📅 ${esc(m.date||'-')} ${esc(m.time||'')}<br/>
+              💰 ₹${esc(m.entryFee||'Free')} &nbsp;|&nbsp; 🏆 ${esc(m.prize||'-')}
+            </div>
+          </div>
+          <span class="tag ${m.status==='active'?'tag-on':'tag-off'}">${m.status==='completed'?'✓ Completed':(m.status||'active')}</span>
+        </div>
+        <div style="font-size:11px;color:var(--mt)">${(m.fields||[]).length} extra fields</div>
+        <div class="m-actions">
+          <button class="btn btn-secondary btn-sm" data-edit="${m.id}">Edit</button>
+          <button class="btn btn-ghost btn-sm" data-copy="${m.id}">Copy Link</button>
+          <button class="btn btn-danger btn-sm" data-del="${m.id}">Delete</button>
+        </div>
+      </div>`).join('')}
+  </div>`;
+
+  document.getElementById('create-btn').onclick = () => showMatchModal(null, async m=>{
+    await upsertMatch(m); toast('Match created!','ok'); tabMatches(c);
+  });
+  c.querySelectorAll('[data-edit]').forEach(b=>{
+    const m=matches.find(x=>x.id===b.dataset.edit);
+    b.onclick=()=>showMatchModal(m, async u=>{ await upsertMatch(u); toast('Saved!','ok'); tabMatches(c); });
+  });
+  c.querySelectorAll('[data-copy]').forEach(b=>{
+    b.onclick=()=>{
+      const url=`${location.href.split('#')[0]}?match=${b.dataset.copy}`;
+      navigator.clipboard.writeText(url).then(()=>toast('Link copied!','ok'));
+    };
+  });
+  c.querySelectorAll('[data-del]').forEach(b=>{
+    b.onclick=async()=>{ if(!confirm('Delete this match?')) return; await delMatch(b.dataset.del); toast('Deleted','ok'); tabMatches(c); };
+  });
+}
+
+// ============================================================
+// MATCH MODAL
+// ============================================================
+const FIELD_TYPES = ['text','number','email','tel','select','textarea'];
+const FF_MAPS = ['Bermuda','Bermuda Remastered','Kalahari','Purgatory','Alpine','Nexterra',' Bermuda Classic'];
+
+function showMatchModal(match, onSave) {
+  const m = match ? JSON.parse(JSON.stringify(match)) : {
+    id:'', name:'', mode:'Solo', map:'Bermuda', date:'', time:'',
+    entryFee:'', maxPlayers:'', prize:'', status:'active',
+    qrImage:'', upiId:'', description:'', fields:[], isDefault:false
+  };
+
+  const bg = document.createElement('div');
+  bg.className='modal-bg';
+  bg.innerHTML=`
+  <div class="modal">
+    <h3>${match?'Edit Match':'Create New Match'}</h3>
+    <div class="g2">
+      <div class="field" style="grid-column:1/-1"><label class="lbl">Match Name <span class="req">*</span></label>
+        <input class="inp" id="m-name" value="${esc(m.name)}" placeholder="e.g. Booyah Cup #1"/></div>
+      <div class="field"><label class="lbl">Mode</label>
+        <select class="inp" id="m-mode">
+          ${['Solo','Duo','Squad','4v4','Custom'].map(o=>`<option ${m.mode===o?'selected':''}>${o}</option>`).join('')}
+        </select></div>
+      <div class="field"><label class="lbl">Map</label>
+        <select class="inp" id="m-map">
+          ${FF_MAPS.map(o=>`<option ${m.map===o?'selected':''}>${o}</option>`).join('')}
+          <option ${!FF_MAPS.includes(m.map)?'selected':''}>Custom</option>
+        </select></div>
+      <div class="field"><label class="lbl">Date</label>
+        <input class="inp" id="m-date" type="date" value="${esc(m.date)}"/></div>
+      <div class="field"><label class="lbl">Time</label>
+        <input class="inp" id="m-time" type="time" value="${esc(m.time)}"/></div>
+      <div class="field"><label class="lbl">Entry Fee (₹)</label>
+        <input class="inp" id="m-fee" type="number" value="${esc(m.entryFee)}" placeholder="0"/></div>
+      <div class="field"><label class="lbl">Max Players</label>
+        <input class="inp" id="m-max" type="number" value="${esc(m.maxPlayers)}" placeholder="∞"/></div>
+    </div>
+    <div class="field"><label class="lbl">Winning Prize 🏆</label>
+      <input class="inp" id="m-prize" value="${esc(m.prize)}" placeholder="e.g. 1st: ₹500, 2nd: ₹200"/></div>
+    <div class="field"><label class="lbl">Status</label>
+      <select class="inp" id="m-status">
+        <option value="active" ${m.status==='active'?'selected':''}>Active (Open for registration)</option>
+        <option value="closed" ${m.status==='closed'?'selected':''}>Closed</option>
+        <option value="completed" ${m.status==='completed'?'selected':''}>Completed (auto-deletes registrations)</option>
+      </select></div>
+    <div class="field" style="display:flex;align-items:center;gap:8px;padding-top:4px">
+      <input type="checkbox" id="m-default" ${m.isDefault?'checked':''} style="width:16px;height:16px"/>
+      <label class="lbl" for="m-default" style="margin:0;cursor:pointer">⭐ Set as Default Match (auto-opens for players, no selection needed)</label>
+    </div>
+    <div class="field"><label class="lbl">Description / Rules</label>
+      <textarea class="inp" id="m-desc" placeholder="Match rules, prize details…">${esc(m.description)}</textarea></div>
+    <hr class="div"/>
+    <div style="font-family:Rajdhani;font-size:12px;font-weight:700;color:var(--or);margin-bottom:10px;letter-spacing:1px">PAYMENT (QR CODE)</div>
+    <div class="g2">
+      <div class="field"><label class="lbl">UPI ID</label>
+        <input class="inp" id="m-upi" value="${esc(m.upiId)}" placeholder="name@upi"/></div>
+      <div class="field"><label class="lbl">QR Code Image</label>
+        <div class="upload-area" style="padding:10px" id="qr-wrap">
+          <input type="file" accept="image/*" id="qr-file"/>
+          ${m.qrImage?`<img src="${m.qrImage}" style="max-height:65px;border-radius:4px"/>`:'<span style="font-size:12px;color:var(--mt)">Upload QR Image</span>'}
+        </div></div>
+    </div>
+    <hr class="div"/>
+    <div style="font-family:Rajdhani;font-size:12px;font-weight:700;color:var(--or);margin-bottom:6px;letter-spacing:1px">EXTRA FORM FIELDS</div>
+    <div style="font-size:11px;color:var(--mt);margin-bottom:10px">Default fields: Player Name, Free Fire UID, IGN. Add extras below.</div>
+    <div id="fields-list"></div>
+    <div style="display:grid;grid-template-columns:1fr 95px auto;gap:7px;align-items:end">
+      <input class="inp" id="new-fl" placeholder="Field label"/>
+      <select class="inp" id="new-ft">${FIELD_TYPES.map(t=>`<option>${t}</option>`).join('')}</select>
+      <button class="btn btn-secondary btn-sm" id="add-field-btn">+ Add</button>
+    </div>
+    <div class="field hidden mt8" id="opts-row">
+      <input class="inp" id="new-fo" placeholder="Options: Option1, Option2"/>
+    </div>
+    <div class="flex gap10 mt16" style="justify-content:flex-end">
+      <button class="btn btn-ghost" id="modal-cancel">Cancel</button>
+      <button class="btn btn-primary" id="modal-save">Save Match</button>
+    </div>
+  </div>`;
+  document.body.appendChild(bg);
+
+  function renderFields() {
+    document.getElementById('fields-list').innerHTML = m.fields.map((f,i)=>`
+      <div class="field-row">
+        <div class="field-row-info">
+          <div class="field-row-name">${esc(f.label)}</div>
+          <div class="field-row-type">${f.type}${f.options?' ('+f.options.join(', ')+')':''}</div>
+        </div>
+        <button class="btn btn-danger btn-sm" data-rm="${i}">✕</button>
+      </div>`).join('');
+    document.querySelectorAll('[data-rm]').forEach(b=>{
+      b.onclick=()=>{ m.fields.splice(+b.dataset.rm,1); renderFields(); };
+    });
+  }
+  renderFields();
+
+  document.getElementById('new-ft').onchange=function(){
+    document.getElementById('opts-row').classList.toggle('hidden', this.value!=='select');
+  };
+  document.getElementById('add-field-btn').onclick=()=>{
+    const label=document.getElementById('new-fl').value.trim();
+    const type=document.getElementById('new-ft').value;
+    if(!label) return;
+    const f={id:Date.now().toString(),label,type,required:false};
+    if(type==='select') f.options=document.getElementById('new-fo').value.split(',').map(o=>o.trim()).filter(Boolean);
+    m.fields.push(f);
+    renderFields();
+    document.getElementById('new-fl').value='';
+    document.getElementById('new-fo').value='';
+  };
+
+  // QR upload
+  function bindQR() {
+    const inp=document.getElementById('qr-file');
+    if(!inp) return;
+    inp.onchange=function(){
+      const file=this.files[0]; if(!file) return;
+      const r=new FileReader();
+      r.onload=ev=>{
+        m.qrImage=ev.target.result;
+        document.getElementById('qr-wrap').innerHTML=
+          `<input type="file" accept="image/*" id="qr-file"/><img src="${m.qrImage}" style="max-height:65px;border-radius:4px"/>`;
+        bindQR();
+      };
+      r.readAsDataURL(file);
+    };
+  }
+  bindQR();
+
+  bg.onclick=e=>{ if(e.target===bg) bg.remove(); };
+  document.getElementById('modal-cancel').onclick=()=>bg.remove();
+  document.getElementById('modal-save').onclick=async()=>{
+    const name=document.getElementById('m-name').value.trim();
+    if(!name){toast('Match name required','er');return;}
+    const newStatus = document.getElementById('m-status').value;
+    const becomingCompleted = newStatus==='completed' && match?.status!=='completed';
+    if (becomingCompleted) {
+      const ok = confirm('Match ko Completed mark karne se saari registrations (aur unke screenshots) permanently delete ho jayengi. Continue?');
+      if (!ok) { document.getElementById('m-status').value = match?.status||'active'; return; }
+    }
+    Object.assign(m,{
+      name, prize: document.getElementById('m-prize').value,
+      mode:  document.getElementById('m-mode').value,
+      map:   document.getElementById('m-map').value,
+      date:  document.getElementById('m-date').value,
+      time:  document.getElementById('m-time').value,
+      entryFee: document.getElementById('m-fee').value,
+      maxPlayers: document.getElementById('m-max').value,
+      status: newStatus,
+      description: document.getElementById('m-desc').value,
+      upiId: document.getElementById('m-upi').value,
+      isDefault: document.getElementById('m-default').checked,
+      createdAt: m.createdAt||Date.now()
+    });
+    if(!m.id) m.id=Date.now().toString();
+    const btn=document.getElementById('modal-save');
+    btn.disabled=true; btn.textContent='Saving…';
+    if (becomingCompleted) await delSubsByMatch(m.id);
+    await onSave(m); bg.remove();
+  };
+}
+
+// ============================================================
+// TAB: SUBMISSIONS
+// ============================================================
+let subFilter='';
+
+async function tabSubs(c) {
+  c.innerHTML='<div style="color:var(--mt);padding:20px">Loading…</div>';
+  const [matches,subs]=await Promise.all([getMatches(),getSubs()]);
+  const list=subFilter?subs.filter(s=>s.matchId===subFilter):subs;
+
+  c.innerHTML=`
+  <div class="flex sb ac" style="flex-wrap:wrap;gap:10px;margin-bottom:4px">
+    <div class="page-title" style="margin-bottom:0">REGIS<span>TRATIONS</span></div>
+    <select class="inp" style="width:200px" id="match-filter">
+      <option value="">All Matches</option>
+      ${matches.map(m=>`<option value="${m.id}" ${subFilter===m.id?'selected':''}>${esc(m.name)}</option>`).join('')}
+    </select>
+  </div>
+  ${list.length===0
+    ? '<div style="color:var(--mt);font-size:13px;margin-top:12px">No registrations found.</div>'
+    : `<div class="tbl-wrap"><table class="tbl">
+      <thead><tr>
+        <th>Player / IGN</th><th>UID</th><th>Match</th><th>Mobile</th><th>Payment</th><th>Date</th><th>Actions</th>
+      </tr></thead><tbody>
+      ${list.map(s=>`<tr>
+        <td><strong>${esc(s.playerName)||'-'}</strong><br/><span style="color:var(--mt);font-size:11px">${esc(s.ign||'')}</span></td>
+        <td style="font-family:monospace;font-size:12px">${esc(s.uid||'-')}</td>
+        <td>${esc(s.matchName||'-')}</td>
+        <td id="mob-${s.id}">${s.mobile
+          ?`<a href="tel:${esc(s.mobile)}" style="color:var(--or)">${esc(s.mobile)}</a>`
+          :`<button class="btn btn-ghost btn-sm" data-addmob="${s.id}">+ Add</button>`}</td>
+        <td>${s.paymentVerified
+          ?`<span class="tag tag-on">Verified</span>`
+          :`<button class="btn btn-success btn-sm" data-verify="${s.id}">Verify</button>`}</td>
+        <td style="font-size:11px;color:var(--mt)">${new Date(s.createdAt).toLocaleDateString()}</td>
+        <td><div class="flex gap8">
+          <button class="btn btn-ghost btn-sm" data-view="${s.id}">View</button>
+          <button class="btn btn-success btn-sm" data-wa="${s.id}">WA</button>
+        </div></td>
+      </tr>`).join('')}
+      </tbody></table></div>`}`;
+
+  document.getElementById('match-filter').onchange=function(){ subFilter=this.value; tabSubs(c); };
+
+  c.querySelectorAll('[data-verify]').forEach(b=>{
+    b.onclick=async()=>{ await updateSub(b.dataset.verify,{paymentVerified:true}); toast('Verified!','ok'); tabSubs(c); };
+  });
+  c.querySelectorAll('[data-addmob]').forEach(b=>{
+    const sub=list.find(s=>s.id===b.dataset.addmob);
+    b.onclick=()=>showMobModal(sub, async mob=>{ await updateSub(sub.id,{mobile:mob}); toast('Saved!','ok'); tabSubs(c); });
+  });
+  c.querySelectorAll('[data-view]').forEach(b=>{
+    const sub=list.find(s=>s.id===b.dataset.view);
+    const match=matches.find(m=>m.id===sub.matchId);
+    b.onclick=()=>showSubDetail(sub,match, async mob=>{ await updateSub(sub.id,{mobile:mob}); toast('Saved!','ok'); tabSubs(c); });
+  });
+  c.querySelectorAll('[data-wa]').forEach(b=>{
+    const sub=list.find(s=>s.id===b.dataset.wa);
+    const match=matches.find(m=>m.id===sub.matchId);
+    b.onclick=()=>sendWAToPlayer(sub);
+  });
+}
+
+function showMobModal(sub, onSave) {
+  const bg=document.createElement('div'); bg.className='modal-bg';
+  bg.innerHTML=`<div class="modal" style="max-width:340px">
+    <h3>Add Mobile Number</h3>
+    <div class="field"><label class="lbl">Mobile No.</label>
+      <input class="inp" id="mob-inp" type="tel" placeholder="Mobile number" value="${esc(sub.mobile||'')}"/></div>
+    <div class="flex gap10" style="justify-content:flex-end">
+      <button class="btn btn-ghost" id="mc">Cancel</button>
+      <button class="btn btn-primary" id="ms">Save</button>
+    </div></div>`;
+  document.body.appendChild(bg);
+  bg.onclick=e=>{ if(e.target===bg) bg.remove(); };
+  document.getElementById('mc').onclick=()=>bg.remove();
+  document.getElementById('ms').onclick=async()=>{
+    const mob=document.getElementById('mob-inp').value.trim();
+    if(!mob) return; await onSave(mob); bg.remove();
+  };
+}
+
+function showSubDetail(sub, match, onSaveMob) {
+  const rows=[
+    ['Match',sub.matchName],['Mode',match?.mode],['Map',match?.map],
+    ['Entry Fee',`₹${match?.entryFee||'-'}`],['Prize',match?.prize],
+    ...Object.entries(sub.formData||{}).map(([k,v])=>[k,v]),
+    ['Mobile',sub.mobile||'Not added'],['Submitted',new Date(sub.createdAt).toLocaleString()],
+    ['Payment',sub.paymentVerified?'✓ Verified':'Pending'],
+  ].filter(([,v])=>v!=null&&v!=='');
+
+  const bg=document.createElement('div'); bg.className='modal-bg';
+  bg.innerHTML=`<div class="modal">
+    <h3>Registration Details</h3>
+    <div>${rows.map(([k,v])=>`<div class="sub-row">
+      <span class="sub-key">${esc(k)}</span><span class="sub-val">${esc(v)}</span></div>`).join('')}
+    ${sub.screenshotUrl?`<div class="sub-row"><span class="sub-key">Screenshot</span>
+      <img src="${sub.screenshotUrl}" style="max-width:110px;border-radius:4px;cursor:zoom-in" id="ss-thumb"/></div>`:''}
+    </div>
+    <hr class="div"/>
+    <div style="font-family:Rajdhani;font-size:12px;font-weight:700;color:var(--or);margin-bottom:8px">ADD / UPDATE MOBILE</div>
+    <div class="flex gap8">
+      <input class="inp" id="detail-mob" type="tel" placeholder="Mobile number" value="${esc(sub.mobile||'')}"/>
+      <button class="btn btn-primary" id="detail-mob-save">Save</button>
+    </div>
+    <div class="flex gap10 mt12" style="justify-content:flex-end">
+      <button class="btn btn-success btn-sm" id="detail-wa">📱 Share WhatsApp</button>
+      <button class="btn btn-ghost" id="detail-close">Close</button>
+    </div></div>`;
+  document.body.appendChild(bg);
+  bg.onclick=e=>{ if(e.target===bg) bg.remove(); };
+  document.getElementById('detail-close').onclick=()=>bg.remove();
+  document.getElementById('detail-wa').onclick=()=>{ sendWAToPlayer(sub); bg.remove(); };
+  const thumb=document.getElementById('ss-thumb');
+  if(thumb) thumb.onclick=()=>showImageLightbox(sub.screenshotUrl);
+  document.getElementById('detail-mob-save').onclick=async()=>{
+    const mob=document.getElementById('detail-mob').value.trim();
+    if(!mob) return; await onSaveMob(mob); bg.remove();
+  };
+}
+
+function showImageLightbox(url) {
+  const box=document.createElement('div');
+  box.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.92);z-index:9999;display:flex;align-items:center;justify-content:center;padding:20px;cursor:zoom-out';
+  box.innerHTML=`<img src="${url}" style="max-width:100%;max-height:100%;border-radius:6px;box-shadow:0 0 30px rgba(0,0,0,.6)"/>
+    <div style="position:absolute;top:16px;right:20px;font-size:28px;color:#fff;cursor:pointer" id="lb-close">✕</div>`;
+  box.onclick=()=>box.remove();
+  document.body.appendChild(box);
+}
+
+// ============================================================
+// TAB: WHATSAPP (send login ID/password to a player)
+// ============================================================
+async function tabWhatsApp(c) {
+  c.innerHTML = '<div style="color:var(--mt);padding:20px">Loading…</div>';
+  const matches = await getMatches();
+  const allSubs = await getSubs();
+
+  c.innerHTML = `
+  <div class="page-title">WHATS<span>APP</span></div>
+  <div class="card" style="max-width:480px">
+    <h3>Send Login ID / Password</h3>
+    <p style="font-size:12px;color:var(--mt);margin-bottom:14px">
+      Match aur player chuno, ID/Password bharo — WhatsApp message auto ban ke us player ke number pe khulega.
+    </p>
+    <div class="field"><label class="lbl">Match</label>
+      <select class="inp" id="wa-match">
+        <option value="">Select match…</option>
+        ${matches.map(m=>`<option value="${m.id}">${esc(m.name)}</option>`).join('')}
+      </select></div>
+    <div class="field"><label class="lbl">Player / Team</label>
+      <select class="inp" id="wa-sub" disabled>
+        <option value="">Select match first…</option>
+      </select></div>
+    <div class="field"><label class="lbl">Player Mobile No.</label>
+      <input class="inp" id="wa-mobile" placeholder="91XXXXXXXXXX (auto-fills if saved)"/></div>
+    <div class="g2">
+      <div class="field"><label class="lbl">Login ID <span class="req">*</span></label>
+        <input class="inp" id="wa-id" placeholder="e.g. Team Code / Username"/></div>
+      <div class="field"><label class="lbl">Password <span class="req">*</span></label>
+        <input class="inp" id="wa-pw" placeholder="Password"/></div>
+    </div>
+    <div class="field"><label class="lbl">Extra Note (optional)</label>
+      <textarea class="inp" id="wa-note" placeholder="Room ID, timing, instructions…"></textarea></div>
+    <button class="btn btn-success btn-full mt8" id="wa-send">📱 Send via WhatsApp</button>
+  </div>`;
+
+  const matchSel = document.getElementById('wa-match');
+  const subSel   = document.getElementById('wa-sub');
+  const mobInp   = document.getElementById('wa-mobile');
+
+  matchSel.onchange = () => {
+    const subs = allSubs.filter(s=>s.matchId===matchSel.value);
+    if (!subs.length) {
+      subSel.innerHTML = '<option value="">No registrations for this match</option>';
+      subSel.disabled = true;
+      return;
+    }
+    subSel.disabled = false;
+    subSel.innerHTML = '<option value="">Select player…</option>' +
+      subs.map(s=>`<option value="${s.id}">${esc(s.playerName||'Unnamed')} — ${esc(s.uid||'')}</option>`).join('');
+  };
+
+  subSel.onchange = () => {
+    const sub = allSubs.find(s=>s.id===subSel.value);
+    mobInp.value = sub?.mobile || '';
+  };
+
+  document.getElementById('wa-send').onclick = () => {
+    const mob = mobInp.value.trim().replace(/\D/g,'');
+    const id  = document.getElementById('wa-id').value.trim();
+    const pw  = document.getElementById('wa-pw').value.trim();
+    const note = document.getElementById('wa-note').value.trim();
+    const sub = allSubs.find(s=>s.id===subSel.value);
+
+    if (!mob) { toast('Player ka mobile number bharo (ya select karo jiska save hai)', 'er'); return; }
+    if (!id || !pw) { toast('Login ID aur Password dono bharo', 'er'); return; }
+
+    const num = mob.length===10 ? `91${mob}` : mob;
+    const lines = [
+      `🔥 *ZoneX Esports – Login Details*`,
+      ``,
+      sub?.matchName ? `📋 *Match:* ${sub.matchName}` : '',
+      sub?.playerName ? `👤 *Player:* ${sub.playerName}` : '',
+      ``,
+      `🆔 *ID:* ${id}`,
+      `🔑 *Password:* ${pw}`,
+      note ? `` : '',
+      note ? `📝 *Note:* ${note}` : '',
+      ``,
+      `Room join karte waqt ye details use karo. All the best! 🏆`
+    ].filter(l=>l!=='');
+
+    const msg = encodeURIComponent(lines.join('\n'));
+    window.open(`https://wa.me/${num}?text=${msg}`, '_blank');
+  };
+}
+
+
+function tabSettings(c) {
+  const s=lsSettings();
+  const baseUrl=location.href.split('#')[0].split('?')[0];
+  c.innerHTML=`
+  <div class="page-title">SETT<span>INGS</span></div>
+  <div class="settings-wrap">
+    <div class="card" style="margin-bottom:14px">
+      <h3>WhatsApp Number</h3>
+      <p style="font-size:12px;color:var(--mt);margin-bottom:11px">
+        Registration submissions auto-forward to this number.<br/>Country code without + (e.g. <strong>91XXXXXXXXXX</strong>)
+      </p>
+      <div class="field"><label class="lbl">WhatsApp No.</label>
+        <input class="inp" id="wa-no" value="${esc(s.whatsapp)}" placeholder="91XXXXXXXXXX"/></div>
+    </div>
+    <div class="card" style="margin-bottom:14px">
+      <h3>Admin Password</h3>
+      <div class="field"><label class="lbl">New Password</label>
+        <input class="inp" id="new-pass" type="password" placeholder="Leave blank to keep current"/></div>
+    </div>
+    <div class="card" style="margin-bottom:14px">
+      <h3>Firebase Status</h3>
+      <p style="font-size:13px;color:${firebaseOK?'var(--gn)':'var(--or)'}">
+        ${firebaseOK?'✓ Firebase connected — data syncs to cloud':'⚠ Local mode — edit FIREBASE_CONFIG in the HTML file'}
+      </p>
+    </div>
+    <div class="card" style="margin-bottom:20px">
+      <h3>Player Form Link (send this to players)</h3>
+      <div class="copy-box"><span>${baseUrl}</span>
+        <button class="btn btn-secondary btn-sm" id="copy-url-btn">Copy</button></div>
+    </div>
+    <button class="btn btn-primary" id="save-settings-btn">SAVE SETTINGS</button>
+  </div>`;
+  document.getElementById('copy-url-btn').onclick=()=>{
+    navigator.clipboard.writeText(baseUrl).then(()=>toast('Link copied!','ok'));
+  };
+  document.getElementById('save-settings-btn').onclick=()=>{
+    const wa=document.getElementById('wa-no').value.trim();
+    const np=document.getElementById('new-pass').value.trim();
+    saveSettings({whatsapp:wa, password:np||s.password||DEFAULT_PASS});
+    toast('Settings saved!','ok');
+  };
+}
+
+// ============================================================
+// PLAYER FORM
+// ============================================================
+let P = { step:1, matches:[], selected:null, formData:{}, ssFile:null, ssPrev:null };
+
+async function renderPlayer(root) {
+  root.innerHTML=`
+  <nav class="nav">
+    <div class="nav-logo">FF <span>TOURNAMENT</span></div>
+    <a href="#admin" style="color:var(--mt);font-size:12px;font-weight:600;text-decoration:none">Admin →</a>
+  </nav>
+  <div class="player-outer">
+    <div class="p-header">
+      <div style="font-size:50px;margin-bottom:7px">🔥</div>
+      <h1>FREE <span class="glow">FIRE</span></h1>
+      <p style="color:var(--mt);font-size:12px;margin-top:5px">Tournament Registration</p>
+    </div>
+    <div class="p-form" id="p-form">
+      <div style="color:var(--mt);text-align:center;padding:30px">Loading…</div>
+    </div>
+  </div>
+  <div style="text-align:center;padding:28px 0 18px;font-size:11px;color:var(--mt)">
+    FF Tournament Hub • <a href="#admin" style="color:var(--or)">Admin Panel</a>
+  </div>`;
+
+  P = { step:1, matches:[], selected:null, formData:{}, ssFile:null, ssPrev:null };
+  const all = await getMatches();
+  P.matches = all.filter(m=>m.status==='active');
+
+  // Direct match link — skip step 1
+  const urlMatchId = new URLSearchParams(location.search).get('match');
+  if (urlMatchId) {
+    const m = P.matches.find(x=>x.id===urlMatchId) || all.find(x=>x.id===urlMatchId);
+    if (m) { P.selected=m; P.step=2; }
+  } else {
+    // No explicit match in URL — auto-open the admin-marked default match, if any
+    const def = P.matches.find(x=>x.isDefault);
+    if (def) { P.selected=def; P.step=2; }
+  }
+
+  drawStep();
+}
+
+function drawStep() {
+  const pf = document.getElementById('p-form');
+  if (!pf) return;
+
+  // Only show steps 2,3,4 progress when we came via direct link OR after selecting
+  const showSteps = P.selected != null || P.step > 1;
+  const stepDefs = P.selected
+    ? [{n:1,l:'Details'},{n:2,l:'Payment'},{n:3,l:'Done'}]
+    : [{n:1,l:'Select'},{n:2,l:'Details'},{n:3,l:'Pay'},{n:4,l:'Done'}];
+
+  // map internal step to display step (when step 1 was auto-skipped, either via URL link or default match)
+  const skippedStep1 = P.selected && (new URLSearchParams(location.search).get('match') || P.matches.find(x=>x.id===P.selected.id)?.isDefault);
+  const dispStep = skippedStep1
+    ? P.step - 1  // 2→1, 3→2, 4→3
+    : P.step;
+
+  const stepBar = showSteps ? `<div class="steps">
+    ${stepDefs.map((s,i,a)=>`
+      <div class="step ${dispStep>s.n?'done':dispStep===s.n?'cur':''}">
+        <div class="step-n">${dispStep>s.n?'✓':s.n}</div>
+        <div class="step-l">${s.l}</div>
+      </div>${i<a.length-1?'<div class="step-line"></div>':''}`).join('')}
+  </div>` : '';
+
+  // ---- STEP 1: SELECT MATCH ----
+  if (P.step === 1) {
+    pf.innerHTML=`
+    <div style="font-family:Rajdhani;font-size:13px;font-weight:700;color:var(--or);letter-spacing:1px;margin-bottom:10px">SELECT MATCH</div>
+    ${P.matches.length===0
+      ?'<div class="card" style="text-align:center;color:var(--mt);padding:28px">No active matches right now. Check back later!</div>'
+      :`<div class="match-grid">
+        ${P.matches.map(m=>`
+          <div class="match-opt ${P.selected?.id===m.id?'sel':''}" data-mid="${m.id}">
+            <div class="match-opt-name">${esc(m.name)}</div>
+            <div class="match-opt-sub">⚔️ ${esc(m.mode||'')} &nbsp;•&nbsp; 🗺 ${esc(m.map||'')}</div>
+            <div class="match-opt-sub">📅 ${esc(m.date||'')} ${esc(m.time||'')}</div>
+            <div class="match-opt-fee">Entry: ₹${esc(m.entryFee||'Free')}${m.prize?` &nbsp;|&nbsp; 🏆 ${esc(m.prize)}`:''}</div>
+          </div>`).join('')}
+        </div>`}`;
+
+    pf.querySelectorAll('[data-mid]').forEach(el=>{
+      el.onclick=()=>{
+        P.selected=P.matches.find(m=>m.id===el.dataset.mid);
+        P.step=2; drawStep();
+      };
+    });
+  }
+
+  // ---- STEP 2: FILL FORM ----
+  else if (P.step === 2) {
+    const m = P.selected;
+
+    // How many player slots for this mode
+    function slotsForMode(mode) {
+      switch((mode||'').toLowerCase()) {
+        case 'solo': return { main:1, sub:0 };
+        case 'duo': return { main:2, sub:0 };
+        case 'squad': return { main:4, sub:2 };
+        case '4v4': return { main:4, sub:0 };
+        default: return { main:1, sub:0 }; // Custom / fallback
+      }
+    }
+    const { main, sub } = slotsForMode(m.mode);
+    const totalSlots = main + sub;
+
+    // Build per-player field groups: Player1 Name/UID/IGN, Player2..., Substitute1...
+    const playerFieldGroups = [];
+    for (let i=1;i<=main;i++){
+      playerFieldGroups.push({
+        title: main===1 ? 'Player Details' : `Player ${i}${i===1?' (Captain)':''}`,
+        sub:false,
+        fields: [
+          { id:`p${i}_name`, label:`Player ${i} Name`,        type:'text', required:true },
+          { id:`p${i}_uid`,  label:`Player ${i} Free Fire UID`, type:'text', required:true },
+          { id:`p${i}_ign`,  label:`Player ${i} IGN`,           type:'text', required:false },
+        ]
+      });
+    }
+    for (let i=1;i<=sub;i++){
+      playerFieldGroups.push({
+        title: `Substitute ${i}`,
+        sub:true,
+        fields: [
+          { id:`s${i}_name`, label:`Substitute ${i} Name`,        type:'text', required:false },
+          { id:`s${i}_uid`,  label:`Substitute ${i} Free Fire UID`, type:'text', required:false },
+          { id:`s${i}_ign`,  label:`Substitute ${i} IGN`,           type:'text', required:false },
+        ]
+      });
+    }
+    const allFields = [...playerFieldGroups.flatMap(g=>g.fields), ...(m.fields||[])];
+
+    pf.innerHTML=stepBar+`
+    <!-- Match Info Banner -->
+    <div class="match-banner">
+      <div class="match-banner-name">${esc(m.name)}</div>
+      <div class="match-info-grid">
+        <div class="match-info-item"><div class="match-info-label">Mode</div><div class="match-info-val">⚔️ ${esc(m.mode||'-')}</div></div>
+        <div class="match-info-item"><div class="match-info-label">Map</div><div class="match-info-val">🗺 ${esc(m.map||'-')}</div></div>
+        <div class="match-info-item"><div class="match-info-label">Date & Time</div><div class="match-info-val">📅 ${esc(m.date||'-')} ${esc(m.time||'')}</div></div>
+        <div class="match-info-item"><div class="match-info-label">Entry Fee</div><div class="match-info-val">💰 ₹${esc(m.entryFee||'Free')}</div></div>
+        ${m.prize?`<div class="match-info-item" style="grid-column:1/-1"><div class="match-info-label">Winning Prize</div><div class="match-info-val">🏆 ${esc(m.prize)}</div></div>`:''}
+      </div>
+      ${m.description?`<div style="font-size:12px;color:var(--mt);margin-top:9px;padding-top:9px;border-top:1px solid var(--br)">${esc(m.description)}</div>`:''}
+      ${totalSlots>1?`<div style="font-size:11px;color:var(--or);margin-top:9px;padding-top:9px;border-top:1px solid var(--br);font-weight:700">👥 Total Slots: ${main} Mandatory${sub?` + ${sub} Substitute`:''}</div>`:''}
+    </div>
+
+    ${playerFieldGroups.map(g=>`
+      <div style="margin:16px 0 8px;font-family:Rajdhani;font-weight:700;font-size:13px;letter-spacing:1px;color:${g.sub?'var(--mt)':'var(--or)'}">
+        ${g.sub?'🔄':'🎮'} ${esc(g.title)}${g.sub?' <span style="font-weight:400;font-size:11px">(optional)</span>':''}
+      </div>
+      ${g.fields.map(f=>`
+      <div class="field">
+        <label class="lbl">${esc(f.label)} ${f.required?'<span class="req">*</span>':''}</label>
+        <input class="inp" type="text" data-fl="${esc(f.label)}" value="${esc(P.formData[f.label]||'')}" placeholder="${esc(f.label)}"/>
+      </div>`).join('')}
+    `).join('')}
+
+    ${(m.fields||[]).length?`<div style="margin:16px 0 8px;font-family:Rajdhani;font-weight:700;font-size:13px;letter-spacing:1px;color:var(--or)">📋 Additional Info</div>`:''}
+    ${(m.fields||[]).map(f=>`
+      <div class="field">
+        <label class="lbl">${esc(f.label)} ${f.required?'<span class="req">*</span>':''}</label>
+        ${f.type==='textarea'
+          ?`<textarea class="inp" data-fl="${esc(f.label)}">${esc(P.formData[f.label]||'')}</textarea>`
+          :f.type==='select'
+          ?`<select class="inp" data-fl="${esc(f.label)}"><option value="">Select…</option>
+             ${(f.options||[]).map(o=>`<option ${P.formData[f.label]===o?'selected':''}>${esc(o)}</option>`).join('')}</select>`
+          :`<input class="inp" type="${esc(f.type)}" data-fl="${esc(f.label)}" value="${esc(P.formData[f.label]||'')}" placeholder="${esc(f.label)}"/>`}
+      </div>`).join('')}
+
+    <div class="flex gap10 mt8">
+      ${!new URLSearchParams(location.search).get('match')
+        ? '<button class="btn btn-ghost" id="s2-back">← Back</button>' : ''}
+      <button class="btn btn-primary" style="flex:1" id="s2-next">NEXT →</button>
+    </div>`;
+
+    pf.querySelectorAll('[data-fl]').forEach(el=>{
+      el.oninput=el.onchange=()=>{ P.formData[el.dataset.fl]=el.value; };
+    });
+    const backBtn=document.getElementById('s2-back');
+    if(backBtn) backBtn.onclick=()=>{ P.step=1; drawStep(); };
+    document.getElementById('s2-next').onclick=()=>{
+      const missing=allFields.filter(f=>f.required&&!(P.formData[f.label]||'').trim());
+      if(missing.length){toast(`Required: ${missing.map(f=>f.label).join(', ')}`,'er');return;}
+      P.step=3; drawStep();
+    };
+  }
+
+  // ---- STEP 3: PAYMENT ----
+  else if (P.step === 3) {
+    const m=P.selected;
+    pf.innerHTML=stepBar+`
+    <div class="qr-box">
+      <h3>Pay Entry Fee — ₹${esc(m.entryFee||'?')}</h3>
+      <p style="color:var(--mt);font-size:12px;margin-bottom:0">Scan QR and pay, then upload screenshot below</p>
+      <div class="qr-img-wrap">
+        ${m.qrImage?`<img src="${m.qrImage}" alt="QR Code"/>`:'<span style="font-size:11px;padding:10px">QR not set by admin</span>'}
+      </div>
+      ${m.upiId?`<div style="font-size:12px;color:var(--mt)">UPI: <strong style="color:var(--tx)">${esc(m.upiId)}</strong></div>`:''}
+    </div>
+
+    <div style="font-family:Rajdhani;font-size:12px;font-weight:700;color:var(--or);letter-spacing:1px;margin-bottom:7px">
+      UPLOAD PAYMENT SCREENSHOT <span class="req">*</span>
+    </div>
+    <div class="upload-area" id="upload-area">
+      <input type="file" accept="image/*" id="ss-input" capture="environment"/>
+      ${P.ssPrev
+        ?`<img src="${P.ssPrev}" class="upload-preview"/><div style="font-size:12px;color:var(--gn)">✓ Screenshot added. Tap to change.</div>`
+        :`<span class="upload-ico">📸</span>
+          <div class="upload-lbl">Upload / Take Screenshot</div>
+          <div class="upload-sub">Tap to select from gallery or camera</div>`}
+    </div>
+
+    <div class="flex gap10">
+      <button class="btn btn-ghost" id="s3-back">← Back</button>
+      <button class="btn btn-primary" style="flex:1" id="s3-submit">SUBMIT REGISTRATION 🔥</button>
+    </div>`;
+
+    document.getElementById('ss-input').onchange=function(){
+      const file=this.files[0]; if(!file) return;
+      P.ssFile=file;
+      const r=new FileReader();
+      r.onload=ev=>{ P.ssPrev=ev.target.result; drawStep(); };
+      r.readAsDataURL(file);
+    };
+    document.getElementById('s3-back').onclick=()=>{ P.step=2; drawStep(); };
+    document.getElementById('s3-submit').onclick=async()=>{
+      if(!P.ssPrev){toast('Upload payment screenshot first','er');return;}
+      const btn=document.getElementById('s3-submit');
+      btn.disabled=true; btn.textContent='Submitting…';
+      try {
+        let screenshotUrl=P.ssPrev; // base64 fallback
+        if(firebaseOK && P.ssFile){
+          screenshotUrl=await uploadScreenshot(P.ssFile, P.formData['Player 1 Name']||P.formData['Player Name']||'player') || P.ssPrev;
+        }
+        const sub = await addSub({
+          matchId:   P.selected.id,
+          matchName: P.selected.name,
+          playerName: P.formData['Player 1 Name'] || P.formData['Player Name'] || '',
+          uid:       P.formData['Player 1 Free Fire UID'] || P.formData['Free Fire UID'] || '',
+          ign:       P.formData['Player 1 IGN'] || P.formData['IGN (In-Game Name)'] || '',
+          formData:  P.formData,
+          screenshotUrl,
+          paymentVerified:false,
+          createdAt: Date.now()
+        });
+        // Auto WhatsApp message to admin
+        sendWA(sub, P.selected);
+        P.step=4; drawStep();
+      } catch(e) {
+        toast('Error submitting. Try again.','er');
+        btn.disabled=false; btn.textContent='SUBMIT REGISTRATION 🔥';
+        console.error(e);
+      }
+    };
+  }
+
+  // ---- STEP 4: SUCCESS ----
+  else if (P.step === 4) {
+    pf.innerHTML=stepBar+`
+    <div class="success-box">
+      <div class="success-ico">🏆</div>
+      <div class="success-title">BOOYAH! REGISTERED!</div>
+      <p style="color:var(--mt);font-size:13px;margin-bottom:20px;line-height:1.6">
+        Your registration for <strong>${esc(P.selected?.name)}</strong> is submitted.<br/>
+        A WhatsApp message was sent to admin.<br/>
+        Admin will verify payment and contact you.
+      </p>
+      <span class="tag tag-on" style="font-size:12px;padding:6px 18px">✓ Registration Complete</span>
+      <div class="mt16">
+        <button class="btn btn-secondary" id="reg-again">Register for Another Match</button>
+      </div>
+    </div>`;
+    document.getElementById('reg-again').onclick=()=>{
+      P={step:1,matches:P.matches,selected:null,formData:{},ssFile:null,ssPrev:null};
+      // remove match param from URL
+      history.replaceState(null,'',location.pathname+location.hash);
+      drawStep();
+    };
+  }
+}
+
+// ============================================================
+// UTIL
+// ============================================================
+function esc(s) {
+  if(s==null) return '';
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+// ============================================================
+// BOOT
+// ============================================================
+route();
+</script>
+</body>
+</html>
