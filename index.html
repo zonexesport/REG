@@ -1240,7 +1240,7 @@ function drawStep() {
       UPLOAD PAYMENT SCREENSHOT <span class="req">*</span>
     </div>
     <div class="upload-area" id="upload-area">
-      <input type="file" accept="image/*" id="ss-input" capture="environment"/>
+      <input type="file" accept="image/*" id="ss-input"/>
       ${P.ssPrev
         ?`<img src="${P.ssPrev}" class="upload-preview"/><div style="font-size:12px;color:var(--gn)">✓ Screenshot added. Tap to change.</div>`
         :`<span class="upload-ico">📸</span>
@@ -1266,9 +1266,11 @@ function drawStep() {
       const btn=document.getElementById('s3-submit');
       btn.disabled=true; btn.textContent='Submitting…';
       try {
-        let screenshotUrl=P.ssPrev; // base64 fallback
-        if(firebaseOK && P.ssFile){
-          screenshotUrl=await uploadScreenshot(P.ssFile, P.formData['Player 1 Name']||P.formData['Player Name']||'player') || P.ssPrev;
+        let screenshotUrl=P.ssPrev; // base64 fallback (used only if ImgBB upload fails)
+        if(P.ssFile){
+          const uploaded = await uploadScreenshot(P.ssFile, P.formData['Player 1 Name']||P.formData['Player Name']||'player');
+          if (uploaded) screenshotUrl = uploaded;
+          else toast('Screenshot cloud upload failed, saving locally instead', 'er');
         }
         const sub = await addSub({
           matchId:   P.selected.id,
